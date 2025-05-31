@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa Interactivo de Jalisco</title>
+    <link rel="stylesheet" href="jalisco.html">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #d32f2f, #f44336);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                rgba(255, 255, 255, 0.1) 10px,
+                rgba(255, 255, 255, 0.1) 20px
+            );
+            animation: headerPattern 20s linear infinite;
+        }
+
+        @keyframes headerPattern {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            position: relative;
+            z-index: 1;
+            opacity: 0.9;
+        }
+
+        .content {
+            display: flex;
+            flex-wrap: wrap;
+            min-height: 600px;
+        }
+
+        .map-container {
+            flex: 1;
+            min-width: 300px;
+            padding: 30px;
+            position: relative;
+        }
+
+        .info-panel {
+            width: 350px;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 30px;
+            border-left: 3px solid #d32f2f;
+            transition: all 0.3s ease;
+        }
+
+        .svg-map {
+            width: 100%;
+            height: 500px;
+            border: 2px solid #ddd;
+            border-radius: 15px;
+            background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
+            box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .region {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.1));
+        }
+
+        .region:hover {
+            transform: scale(1.05);
+            filter: drop-shadow(4px 4px 8px rgba(0, 0, 0, 0.2));
+        }
+
+        .region.active {
+            transform: scale(1.08);
+            filter: drop-shadow(6px 6px 12px rgba(0, 0, 0, 0.3));
+        }
+
+        .city-marker {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .city-marker:hover {
+            transform: scale(1.3);
+        }
+
+        .city-label {
+            font-size: 12px;
+            font-weight: bold;
+            fill: #333;
+            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+        }
+
+        .info-content {
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .info-title {
+            font-size: 1.8rem;
+            color: #d32f2f;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #d32f2f;
+            padding-bottom: 10px;
+        }
+
+        .info-item {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .info-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #555;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            color: #333;
+            line-height: 1.4;
+        }
+
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 30px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .legend-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #d32f2f;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 15px;
+            margin-right: 10px;
+            border-radius: 3px;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                flex-direction: column;
+            }
+            
+            .info-panel {
+                width: 100%;
+                border-left: none;
+                border-top: 3px solid #d32f2f;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity:1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌮 Estado de Jalisco 🌮</h1>
+            <p>Explora las regiones y municipios del estado más emblemático de México</p>
+            <a href="jalisco.html" class="btn">📍 EXIST</a>
+        </div>
+        
+        <div class="content">
+            <div class="map-container">
+                <svg class="svg-map" viewBox="0 0 800 600">
+                    <!-- Fondo del estado -->
+                    <path d="M100 100 L700 100 L680 200 L720 300 L700 450 L600 500 L400 520 L200 480 L120 350 L100 250 Z" 
+                          fill="url(#jaliscoGradient)" stroke="#333" stroke-width="3"/>
+                    
+                    <!-- Regiones del estado -->
+                    <!-- Zona Metropolitana de Guadalajara -->
+                    <path class="region" data-region="zmg" 
+                          d="M350 250 L450 240 L480 280 L460 320 L380 330 L350 290 Z" 
+                          fill="#ff6b6b" opacity="0.8"/>
+                    
+                    <!-- Costa Norte -->
+                    <path class="region" data-region="costa-norte" 
+                          d="M100 150 L200 140 L250 180 L220 220 L150 230 L100 200 Z" 
+                          fill="#4ecdc4" opacity="0.8"/>
+                    
+                    <!-- Costa Sur -->
+                    <path class="region" data-region="costa-sur" 
+                          d="M150 350 L280 340 L320 380 L290 420 L200 430 L150 400 Z" 
+                          fill="#45b7d1" opacity="0.8"/>
+                    
+                    <!-- Los Altos -->
+                    <path class="region" data-region="altos" 
+                          d="M500 180 L600 170 L630 210 L600 250 L520 260 L500 220 Z" 
+                          fill="#96ceb4" opacity="0.8"/>
+                    
+                    <!-- Centro -->
+                    <path class="region" data-region="centro" 
+                          d="M350 330 L480 320 L520 360 L480 400 L400 410 L350 380 Z" 
+                          fill="#feca57" opacity="0.8"/>
+                    
+                    <!-- Sur -->
+                    <path class="region" data-region="sur" 
+                          d="M400 420 L550 410 L580 450 L550 490 L450 500 L400 470 Z" 
+                          fill="#ff9ff3" opacity="0.8"/>
+                    
+                    <!-- Norte -->
+                    <path class="region" data-region="norte" 
+                          d="M300 120 L500 110 L530 150 L500 190 L350 200 L300 160 Z" 
+                          fill="#54a0ff" opacity="0.8"/>
+                    
+                    <!-- Ciudades principales -->
+                    <circle class="city-marker" cx="400" cy="280" r="8" fill="#d32f2f" data-city="guadalajara"/>
+                    <text class="city-label" x="400" y="300">Guadalajara</text>
+                    
+                    <circle class="city-marker" cx="200" cy="190" r="6" fill="#d32f2f" data-city="puerto-vallarta"/>
+                    <text class="city-label" x="200" y="210">Puerto Vallarta</text>
+                    
+                    <circle class="city-marker" cx="550" cy="210" r="5" fill="#d32f2f" data-city="lagos"/>
+                    <text class="city-label" x="550" y="230">Lagos de Moreno</text>
+                    
+                    <circle class="city-marker" cx="430" cy="360" r="5" fill="#d32f2f" data-city="chapala"/>
+                    <text class="city-label" x="430" y="380">Chapala</text>
+                    
+                    <circle class="city-marker" cx="180" cy="380" r="5" fill="#d32f2f" data-city="cihuatlan"/>
+                    <text class="city-label" x="180" y="400">Cihuatlán</text>
+                    
+                    <!-- Definiciones de gradientes -->
+                    <defs>
+                        <linearGradient id="jaliscoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#e8f5e8;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#c8e6c9;stop-opacity:1" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+                
+                <div class="legend">
+                    <div class="legend-title">Regiones</div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #ff6b6b;"></div>
+                        <span>Zona Metropolitana</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #4ecdc4;"></div>
+                        <span>Costa Norte</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #45b7d1;"></div>
+                        <span>Costa Sur</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #96ceb4;"></div>
+                        <span>Los Altos</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="info-panel">
+                <div class="info-content" id="info-content">
+                    <div class="info-title">🏛️ Estado de Jalisco</div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">📍 Capital:</span>
+                        <span class="info-value">Guadalajara</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">👥 Población:</span>
+                        <span class="info-value">8.3 millones de habitantes</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">📏 Superficie:</span>
+                        <span class="info-value">78,599 km²</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">🏛️ Municipios:</span>
+                        <span class="info-value">125 municipios</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">🎭 Cultura:</span>
+                        <span class="info-value">Cuna del mariachi, tequila y charrería</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">🏞️ Destacado:</span>
+                        <span class="info-value">Haz clic en las regiones para explorar más información</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const regionsData = {
+            'zmg': {
+                title: '🏙️ Zona Metropolitana de Guadalajara',
+                items: [
+                    { label: '📍 Municipios principales', value: 'Guadalajara, Zapopan, Tlaquepaque, Tonalá' },
+                    { label: '👥 Población', value: '5.2 millones de habitantes' },
+                    { label: '🏛️ Importancia', value: 'Centro económico y cultural del occidente de México' },
+                    { label: '🎭 Atractivos', value: 'Centro Histórico, Hospicio Cabañas, Tlaquepaque artesanal' },
+                    { label: '🍴 Gastronomía', value: 'Tortas ahogadas, birria, tejuino' }
+                ]
+            },
+            'costa-norte': {
+                title: '🏖️ Costa Norte',
+                items: [
+                    { label: '📍 Municipios principales', value: 'Puerto Vallarta, Bahía de Banderas' },
+                    { label: '🌊 Características', value: 'Playas del Pacífico, turismo internacional' },
+                    { label: '🏖️ Playas destacadas', value: 'Playa de Oro, Las Animas, Yelapa' },
+                    { label: '🎯 Actividades', value: 'Buceo, pesca deportiva, avistamiento de ballenas' },
+                    { label: '🌴 Clima', value: 'Tropical con temporada seca y lluviosa' }
+                ]
+            },
+            'costa-sur': {
+                title: '🌊 Costa Sur',
+                items: [
+                    { label: '📍 Municipios principales', value: 'Cihuatlán, La Huerta, Cuautitlán de García' },
+                    { label: '🏝️ Atractivos', value: 'Barra de Navidad, Melaque, Costa Alegre' },
+                    { label: '🐢 Naturaleza', value: 'Santuario de tortugas marinas' },
+                    { label: '🎣 Actividades', value: 'Pesca deportiva, surf, ecoturismo' },
+                    { label: '🌺 Característica', value: 'Costas más vírgenes y tranquilas' }
+                ]
+            },
+            'altos': {
+                title: '⛰️ Los Altos de Jalisco',
+                items: [
+                    { label: '📍 Municipios principales', value: 'Lagos de Moreno, Tepatitlán, Arandas' },
+                    { label: '🥛 Economía', value: 'Región ganadera y lechera por excelencia' },
+                    { label: '🏛️ Patrimonio', value: 'Lagos de Moreno - Pueblo Mágico' },
+                    { label: '🎭 Tradición', value: 'Arquitectura colonial, fiestas religiosas' },
+                    { label: '🌾 Agricultura', value: 'Producción de maíz, frijol y agave' }
+                ]
+            },
+            'centro': {
+                title: '🏞️ Región Centro',
+                items: [
+                    { label: '📍 Municipios principales', value: 'Chapala, Jocotepec, Ajijic' },
+                    { label: '🌊 Lago de Chapala', value: 'El lago natural más grande de México' },
+                    { label: '🎨 Ajijic', value: 'Comunidad artística internacional' },
+                    { label: '🌡️ Clima', value: 'Clima templado todo el año' },
+                    { label: '🏡 Característica', value: 'Destino de jubilados extranjeros' }
+                ]
+            },
+            'sur': {
+                title: '🌄 Región Sur',
+                items: [
+                    { label: '📍 Municipios principales', value: 'Ciudad Guzmán, Sayula, Tamazula' },
+                    { label: '⛰️ Geografía', value: 'Sierra Madre del Sur, valles y montañas' },
+                    { label: '🌋 Nevado de Colima', value: 'Volcán activo en la frontera con Colima' },
+                    { label: '🌾 Agricultura', value: 'Caña de azúcar, maíz, sorgo' },
+                    { label: '🎯 Tradición', value: 'Fiestas patronales y artesanías' }
+                ]
+            },
+            'norte': {
+                title: '🌵 Región Norte',
+                items: [
+                    { label: '📍 Municipios principales', value: 'Colotlán, Huejúcar, Santa María de los Ángeles' },
+                    { label: '🌵 Paisaje', value: 'Zona semiárida con matorrales y cactáceas' },
+                    { label: '🐄 Ganadería', value: 'Cría de ganado bovino y caprino' },
+                    { label: '⛰️ Sierra', value: 'Parte de la Sierra Madre Occidental' },
+                    { label: '🏛️ Historia', value: 'Rica historia prehispánica y colonial' }
+                ]
+            }
+        };
+
+        const citiesData = {
+            'guadalajara': {
+                title: '🏛️ Guadalajara - Perla Tapatía',
+                items: [
+                    { label: '👥 Población', value: '1.5 millones de habitantes' },
+                    { label: '🏛️ Fundación', value: '14 de febrero de 1542' },
+                    { label: '🎭 Patrimonio', value: 'Centro Histórico Patrimonio de la Humanidad' },
+                    { label: '🎵 Tradición', value: 'Cuna del mariachi y la charrería' },
+                    { label: '🌮 Gastronomía', value: 'Tortas ahogadas, birria, tejuino' }
+                ]
+            },
+            'puerto-vallarta': {
+                title: '🏖️ Puerto Vallarta',
+                items: [
+                    { label: '🌊 Ubicación', value: 'Bahía de Banderas, Costa del Pacífico' },
+                    { label: '✈️ Turismo', value: 'Destino turístico internacional' },
+                    { label: '🎬 Fama', value: 'Popularizado por la película "La Noche de la Iguana"' },
+                    { label: '🌺 Malecón', value: 'Paseo marítimo con esculturas y arte' },
+                    { label: '🐋 Naturaleza', value: 'Avistamiento de ballenas (dic-mar)' }
+                ]
+            },
+            'lagos': {
+                title: '🏛️ Lagos de Moreno - Pueblo Mágico',
+                items: [
+                    { label: '🏛️ Patrimonio', value: 'Centro histórico colonial' },
+                    { label: '⭐ Distinción', value: 'Pueblo Mágico desde 2012' },
+                    { label: '🏛️ Arquitectura', value: 'Templos barrocos y neoclásicos' },
+                    { label: '👑 Historia', value: 'Cuna de héroes de la Independencia' },
+                    { label: '🎭 Tradición', value: 'Fiestas religiosas y culturales' }
+                ]
+            },
+            'chapala': {
+                title: '🌊 Chapala - Orilla del Lago',
+                items: [
+                    { label: '🌊 Lago', value: 'Orillas del lago más grande de México' },
+                    { label: '🌡️ Clima', value: 'Clima templado primaveral todo el año' },
+                    { label: '🎣 Actividades', value: 'Pesca, deportes acuáticos, paseos en lancha' },
+                    { label: '🏡 Comunidad', value: 'Gran comunidad de jubilados extranjeros' },
+                    { label: '🎨 Cultura', value: 'Galerías de arte y eventos culturales' }
+                ]
+            },
+            'cihuatlan': {
+                title: '🏖️ Cihuatlán - Costa Alegre',
+                items: [
+                    { label: '🏖️ Playas', value: 'Barra de Navidad, Melaque' },
+                    { label: '🌊 Costa Alegre', value: 'Parte del corredor turístico Costa Alegre' },
+                    { label: '🐢 Naturaleza', value: 'Santuario de tortugas marinas' },
+                    { label: '🎣 Pesca', value: 'Importante puerto pesquero' },
+                    { label: '🌴 Ambiente', value: 'Playas tranquilas y naturales' }
+                ]
+            }
+        };
+
+        function updateInfoPanel(data) {
+            const infoContent = document.getElementById('info-content');
+            let html = `<div class="info-title">${data.title}</div>`;
+            
+            data.items.forEach(item => {
+                html += `
+                    <div class="info-item">
+                        <span class="info-label">${item.label}:</span>
+                        <span class="info-value">${item.value}</span>
+                    </div>
+                `;
+            });
+            
+            infoContent.innerHTML = html;
+        }
+
+        // Event listeners para regiones
+        document.querySelectorAll('.region').forEach(region => {
+            region.addEventListener('click', function() {
+                // Remover clase active de todas las regiones
+                document.querySelectorAll('.region').forEach(r => r.classList.remove('active'));
+                // Agregar clase active a la región clickeada
+                this.classList.add('active');
+                
+                const regionKey = this.getAttribute('data-region');
+                const data = regionsData[regionKey];
+                if (data) {
+                    updateInfoPanel(data);
+                }
+            });
+
+            region.addEventListener('mouseenter', function() {
+                if (!this.classList.contains('active')) {
+                    this.style.opacity = '1';
+                }
+            });
+
+            region.addEventListener('mouseleave', function() {
+                if (!this.classList.contains('active')) {
+                    this.style.opacity = '0.8';
+                }
+            });
+        });
+
+        // Event listeners para ciudades
+        document.querySelectorAll('.city-marker').forEach(city => {
+            city.addEventListener('click', function() {
+                // Agregar efecto de pulso
+                this.classList.add('pulse');
+                setTimeout(() => this.classList.remove('pulse'), 2000);
+                
+                const cityKey = this.getAttribute('data-city');
+                const data = citiesData[cityKey];
+                if (data) {
+                    updateInfoPanel(data);
+                }
+            });
+
+            city.addEventListener('mouseenter', function() {
+                this.style.filter = 'drop-shadow(0 0 10px #d32f2f)';
+            });
+
+            city.addEventListener('mouseleave', function() {
+                this.style.filter = 'none';
+            });
+        });
+
+        // Animación inicial
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                document.querySelectorAll('.region').forEach((region, index) => {
+                    setTimeout(() => {
+                        region.style.animation = 'fadeIn 0.5s ease forwards';
+                    }, index * 100);
+                });
+            }, 500);
+        });
+    </script>
+</body>
+</html>
